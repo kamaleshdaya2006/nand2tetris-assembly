@@ -1,0 +1,22 @@
+// Memory.hdl
+// Hack Data Memory
+
+CHIP Memory {
+    IN in[16], load, address[15];
+    OUT out[16];
+
+    PARTS:
+    // address[13..14] determines the chip:
+    // 00 or 01: RAM16K (0 to 16383)
+    // 10: Screen (16384 to 24575)
+    // 11: Keyboard (24576)
+    
+    DMux4Way(in=load, sel=address[13..14], a=loadRAMa, b=loadRAMb, c=loadScreen, d=loadKBD);
+    Or(a=loadRAMa, b=loadRAMb, out=loadRAM);
+
+    RAM16K(in=in, load=loadRAM, address=address[0..13], out=outRAM);
+    Screen(in=in, load=loadScreen, address=address[0..12], out=outScreen);	
+    Keyboard(out=outKBD);
+
+    Mux4Way16(a=outRAM, b=outRAM, c=outScreen, d=outKBD, sel=address[13..14], out=out);
+}

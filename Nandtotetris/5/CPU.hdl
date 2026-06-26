@@ -1,0 +1,63 @@
+CHIP CPU {
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+    // --- Instruction Decoding ---
+    // instruction[15] is 0 for A-instruction, 1 for C-instruction
+    Not(in=instruction[15], out=isA);
+    Not(in=isA, out=isC);
+    
+    // --- A Register Logic ---
+    // Load A if it's an A-instruction OR if C-instruction has 'dest' bit for A (instruction[5])
+    And(a=isC, b=instruction[5], out=isALoadC);
+    Or(a=isA, b=isALoadC, out=loadA);
+    
+    Mux16(a=instruction, b=outALU, sel=isALoadC, out=inA);
+    ARegister(in=inA, load=loadA, out=outA, out[0..14]=addressM);
+
+    // --- D Register Logic ---
+    // Load D only if it's a C-instruction AND 'dest' bit for D is set (instruction[4])
+    And(a=isC, b=instruction[4], out=loadD);
+    DRegister(in=outALU, load=loadD, out=outD);
+
+    // --- ALU Logic ---
+    // Select between A-register and Memory input (a-bit: instruction[12])
+    Mux16(a=outA, b=inM, sel=instruction[12], out=outAM);
+
+    ALU(x=outD, y=outAM, 
+        zx=instruction[11], nx=instruction[10], 
+        zy=instruction[9], ny=instruction[8], 
+        f=instruction[7], no=instruction[6], 
+        out=outALU, out=outM, zr=zr, ng=ng);
+
+    // --- WriteM Logic ---
+    // Write to memory if C-instruction and 'dest' bit for M is set (instruction[3])
+    And(a=isC, b=instruction[3], out=writeM);
+
+    // --- Program Counter (Jump) Logic ---
+    // Flags for jump conditions
+    Not(in=zr, out=notZr);
+    Not(in=ng, out=notNg);
+    And(a=notZr, b=notNg, out=isPos);
+
+    And(a=instruction[0], b=isPos, out=jgt); // Jump if > 0
+    And(a=instruction[1], b=zr,    out=jeq); // Jump if == 0
+    And(a=instruction[2], b=ng,    out=jlt); // Jump if < 0
+    
+    Or(a=jgt, b=jeq, out=jge);
+    Or(a=jge, b=jlt, out=jumpCond);
+    
+    // Only jump if it's a C-instruction
+    And(a=isC, b=jumpCond, out=doJump);
+    
+    PC(in=outA, load=doJump, inc=true, reset=reset, out[0..14]=pc);
+}

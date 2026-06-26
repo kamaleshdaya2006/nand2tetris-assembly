@@ -1,0 +1,35 @@
+// Computer.hdl
+// The complete Hack Computer
+
+CHIP Computer {
+
+    IN reset;
+
+    PARTS:
+
+    // CPU
+    CPU(
+        inM=memOut,
+        instruction=romOut,
+        reset=reset,
+        outM=cpuOut,
+        writeM=writeM,
+        addressM=addressM,
+        pc=pc
+    );
+
+    // Memory
+    Memory(
+        in=cpuOut,
+        load=writeM,
+        address=addressM,
+        out=memOut
+    );
+
+    // ROM (Instruction Memory)
+    ROM32K(
+        address=pc,
+        out=romOut
+    );
+
+}

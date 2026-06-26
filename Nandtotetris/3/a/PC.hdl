@@ -1,0 +1,22 @@
+CHIP PC {
+    IN in[16], load, inc, reset;
+    OUT out[16];
+
+    PARTS:
+    // 1. Increment the current value
+    Inc16(in=feedback, out=pcPlusOne);
+
+    // 2. Priority Logic: Reset > Load > Inc
+    // If inc == 1, take incremented value, else current value
+    Mux16(a=feedback, b=pcPlusOne, sel=inc, out=outInc);
+    
+    // If load == 1, override with 'in'
+    Mux16(a=outInc, b=in, sel=load, out=outLoad);
+    
+    // If reset == 1, override with 0
+    Mux16(a=outLoad, b=false, sel=reset, out=outReset);
+
+    // 3. Save the result in a register (always load if any signal is true)
+    // Actually, we can just use "true" for load because the Muxes handle the logic
+    Register(in=outReset, load=true, out=out, out=feedback);
+}
